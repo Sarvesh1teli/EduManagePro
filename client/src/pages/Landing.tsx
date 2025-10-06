@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { GraduationCap, BarChart, Users, FileText } from "lucide-react";
+import { GraduationCap, BarChart, Users, FileText, ExternalLink } from "lucide-react";
 import { LoginForm } from "@/components/LoginForm";
 import { useQuery } from "@tanstack/react-query";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function Landing() {
   const { data: authMode } = useQuery<{ isLocal: boolean }>({
@@ -9,9 +10,14 @@ export default function Landing() {
   });
 
   const isLocal = authMode?.isLocal ?? false;
+  const isInIframe = window.self !== window.top;
 
   const handleLogin = () => {
     window.location.href = "/api/login";
+  };
+
+  const openInNewTab = () => {
+    window.open(window.location.href, "_blank");
   };
 
   return (
@@ -37,6 +43,22 @@ export default function Landing() {
           </div>
         ) : (
           <div className="max-w-4xl mx-auto text-center space-y-8">
+            {isInIframe && (
+              <Alert className="text-left" data-testid="alert-iframe-warning">
+                <ExternalLink className="h-4 w-4" />
+                <AlertTitle>Open in New Tab Required</AlertTitle>
+                <AlertDescription className="space-y-3">
+                  <p>
+                    Authentication doesn't work in preview mode due to browser security restrictions.
+                    Please open this app in a new browser tab to sign in.
+                  </p>
+                  <Button onClick={openInNewTab} data-testid="button-open-new-tab" variant="outline">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Open in New Tab
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-4">
               <h1 className="text-5xl font-bold">
                 Streamline Your School Operations
