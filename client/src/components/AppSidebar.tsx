@@ -18,19 +18,23 @@ import {
   FileText, 
   Building2,
   Settings,
-  LogOut
+  LogOut,
+  RefreshCw,
+  Bell
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Students", url: "/students", icon: GraduationCap },
-  { title: "Staff", url: "/staff", icon: Users },
-  { title: "Financial", url: "/financial", icon: DollarSign },
-  { title: "Vendors", url: "/vendors", icon: Building2 },
-  { title: "Reports", url: "/reports", icon: FileText },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, testId: "nav-dashboard" },
+  { title: "Students", url: "/students", icon: GraduationCap, testId: "nav-students" },
+  { title: "Staff", url: "/staff", icon: Users, testId: "nav-staff" },
+  { title: "Financial", url: "/financial", icon: DollarSign, testId: "nav-financial" },
+  { title: "Vendors", url: "/vendors", icon: Building2, testId: "nav-vendors" },
+  { title: "Renewals", url: "/renewals", icon: RefreshCw, testId: "nav-renewals" },
+  { title: "Reports", url: "/reports", icon: FileText, testId: "nav-reports" },
+  { title: "Notifications", url: "/notifications", icon: Bell, testId: "nav-notifications" },
 ];
 
 interface AppSidebarProps {
@@ -62,7 +66,7 @@ export function AppSidebar({ userRole = "Admin", userName = "Admin User" }: AppS
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link href={item.url} data-testid={`link-${item.title.toLowerCase()}`}>
+                    <Link href={item.url} data-testid={item.testId}>
                       <item.icon className="w-4 h-4" />
                       <span>{item.title}</span>
                     </Link>
@@ -100,7 +104,13 @@ export function AppSidebar({ userRole = "Admin", userName = "Admin User" }: AppS
             <p className="text-xs text-muted-foreground truncate">{userRole}</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="w-full" data-testid="button-logout">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="w-full" 
+          onClick={() => window.location.href = "/api/logout"}
+          data-testid="button-logout"
+        >
           <LogOut className="w-4 h-4 mr-2" />
           Logout
         </Button>
