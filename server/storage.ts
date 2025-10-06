@@ -261,4 +261,220 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export class MemStorage implements IStorage {
+  private users = new Map<string, User>();
+  private students = new Map<number, Student>();
+  private staff = new Map<number, Staff>();
+  private feeRenewals = new Map<number, FeeRenewal>();
+  private notifications = new Map<number, Notification>();
+  private vendors = new Map<number, Vendor>();
+  private payments = new Map<number, Payment>();
+  private expenses = new Map<number, Expense>();
+  
+  private studentIdCounter = 1;
+  private staffIdCounter = 1;
+  private renewalIdCounter = 1;
+  private notificationIdCounter = 1;
+  private vendorIdCounter = 1;
+  private paymentIdCounter = 1;
+  private expenseIdCounter = 1;
+
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(u => u.email === email);
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const id = userData.id || `user_${Date.now()}`;
+    const user: User = {
+      ...userData,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as User;
+    this.users.set(id, user);
+    return user;
+  }
+
+  async getStudent(id: number): Promise<Student | undefined> {
+    return this.students.get(id);
+  }
+
+  async getAllStudents(): Promise<Student[]> {
+    return Array.from(this.students.values());
+  }
+
+  async createStudent(studentData: InsertStudent): Promise<Student> {
+    const id = this.studentIdCounter++;
+    const student: Student = { ...studentData, id } as Student;
+    this.students.set(id, student);
+    return student;
+  }
+
+  async updateStudent(id: number, studentData: Partial<InsertStudent>): Promise<Student> {
+    const existing = this.students.get(id);
+    if (!existing) throw new Error(`Student ${id} not found`);
+    const updated = { ...existing, ...studentData };
+    this.students.set(id, updated);
+    return updated;
+  }
+
+  async deleteStudent(id: number): Promise<void> {
+    this.students.delete(id);
+  }
+
+  async getStaff(id: number): Promise<Staff | undefined> {
+    return this.staff.get(id);
+  }
+
+  async getAllStaff(): Promise<Staff[]> {
+    return Array.from(this.staff.values());
+  }
+
+  async createStaff(staffData: InsertStaff): Promise<Staff> {
+    const id = this.staffIdCounter++;
+    const staff: Staff = { ...staffData, id } as Staff;
+    this.staff.set(id, staff);
+    return staff;
+  }
+
+  async updateStaff(id: number, staffData: Partial<InsertStaff>): Promise<Staff> {
+    const existing = this.staff.get(id);
+    if (!existing) throw new Error(`Staff ${id} not found`);
+    const updated = { ...existing, ...staffData };
+    this.staff.set(id, updated);
+    return updated;
+  }
+
+  async deleteStaff(id: number): Promise<void> {
+    this.staff.delete(id);
+  }
+
+  async getFeeRenewal(id: number): Promise<FeeRenewal | undefined> {
+    return this.feeRenewals.get(id);
+  }
+
+  async getFeeRenewalsByStudent(studentId: number): Promise<FeeRenewal[]> {
+    return Array.from(this.feeRenewals.values()).filter(r => r.studentId === studentId);
+  }
+
+  async getAllFeeRenewals(): Promise<FeeRenewal[]> {
+    return Array.from(this.feeRenewals.values());
+  }
+
+  async createFeeRenewal(renewalData: InsertFeeRenewal): Promise<FeeRenewal> {
+    const id = this.renewalIdCounter++;
+    const renewal: FeeRenewal = { ...renewalData, id } as FeeRenewal;
+    this.feeRenewals.set(id, renewal);
+    return renewal;
+  }
+
+  async updateFeeRenewal(id: number, renewalData: Partial<InsertFeeRenewal>): Promise<FeeRenewal> {
+    const existing = this.feeRenewals.get(id);
+    if (!existing) throw new Error(`Fee renewal ${id} not found`);
+    const updated = { ...existing, ...renewalData };
+    this.feeRenewals.set(id, updated);
+    return updated;
+  }
+
+  async getNotification(id: number): Promise<Notification | undefined> {
+    return this.notifications.get(id);
+  }
+
+  async getAllNotifications(): Promise<Notification[]> {
+    return Array.from(this.notifications.values());
+  }
+
+  async createNotification(notificationData: InsertNotification): Promise<Notification> {
+    const id = this.notificationIdCounter++;
+    const notification: Notification = {
+      ...notificationData,
+      id,
+      createdAt: new Date(),
+    } as Notification;
+    this.notifications.set(id, notification);
+    return notification;
+  }
+
+  async updateNotification(id: number, notificationData: Partial<InsertNotification>): Promise<Notification> {
+    const existing = this.notifications.get(id);
+    if (!existing) throw new Error(`Notification ${id} not found`);
+    const updated = { ...existing, ...notificationData };
+    this.notifications.set(id, updated);
+    return updated;
+  }
+
+  async getVendor(id: number): Promise<Vendor | undefined> {
+    return this.vendors.get(id);
+  }
+
+  async getAllVendors(): Promise<Vendor[]> {
+    return Array.from(this.vendors.values());
+  }
+
+  async createVendor(vendorData: InsertVendor): Promise<Vendor> {
+    const id = this.vendorIdCounter++;
+    const vendor: Vendor = { ...vendorData, id } as Vendor;
+    this.vendors.set(id, vendor);
+    return vendor;
+  }
+
+  async updateVendor(id: number, vendorData: Partial<InsertVendor>): Promise<Vendor> {
+    const existing = this.vendors.get(id);
+    if (!existing) throw new Error(`Vendor ${id} not found`);
+    const updated = { ...existing, ...vendorData };
+    this.vendors.set(id, updated);
+    return updated;
+  }
+
+  async deleteVendor(id: number): Promise<void> {
+    this.vendors.delete(id);
+  }
+
+  async getPayment(id: number): Promise<Payment | undefined> {
+    return this.payments.get(id);
+  }
+
+  async getAllPayments(): Promise<Payment[]> {
+    return Array.from(this.payments.values());
+  }
+
+  async getPaymentsByStudent(studentId: number): Promise<Payment[]> {
+    return Array.from(this.payments.values()).filter(p => p.studentId === studentId);
+  }
+
+  async createPayment(paymentData: InsertPayment): Promise<Payment> {
+    const id = this.paymentIdCounter++;
+    const payment: Payment = {
+      ...paymentData,
+      id,
+      createdAt: new Date(),
+    } as Payment;
+    this.payments.set(id, payment);
+    return payment;
+  }
+
+  async getExpense(id: number): Promise<Expense | undefined> {
+    return this.expenses.get(id);
+  }
+
+  async getAllExpenses(): Promise<Expense[]> {
+    return Array.from(this.expenses.values());
+  }
+
+  async createExpense(expenseData: InsertExpense): Promise<Expense> {
+    const id = this.expenseIdCounter++;
+    const expense: Expense = {
+      ...expenseData,
+      id,
+      createdAt: new Date(),
+    } as Expense;
+    this.expenses.set(id, expense);
+    return expense;
+  }
+}
+
+export const storage = new MemStorage();
