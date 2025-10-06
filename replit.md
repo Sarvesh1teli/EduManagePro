@@ -79,15 +79,42 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication & Authorization
 
-**Current State**
-- Basic user schema with username/password fields
-- No authentication middleware currently implemented
-- User creation and retrieval methods in storage layer
+**Dual Authentication System**
+The application features environment-aware authentication that automatically detects and uses the appropriate method:
 
-**Planned Implementation**
-- Session-based authentication prepared (connect-pg-simple for session store)
-- Role-based access control (Admin, Teacher, Accountant roles visible in UI)
-- Protected routes and API endpoints based on user roles
+**Local Development Mode** (when `REPL_ID` is not present):
+- Username/password authentication via Passport.js Local Strategy
+- Bcrypt password hashing with salt rounds
+- Login form displayed directly on landing page
+- Session cookies work over HTTP (secure flag disabled for local development)
+- Sessions use MemoryStore when DATABASE_URL is not configured
+- Random session secret generated per server boot if SESSION_SECRET not set
+- Test user available: `admin@test.com` / `admin123` (created via seed script)
+
+**Production Mode** (when `REPL_ID` is present):
+- Replit OIDC authentication for single sign-on
+- Secure session cookies (HTTPS only)
+- Persistent sessions via PostgreSQL when DATABASE_URL configured
+- Requires SESSION_SECRET environment variable (throws error if missing)
+- Landing page shows "Sign In" button that redirects to Replit auth
+
+**Session Management**
+- Shared session configuration across both authentication modes
+- Session TTL: 7 days
+- Session store: PostgreSQL (when DATABASE_URL present) or MemoryStore (fallback)
+- Cookie security: httpOnly always enabled, secure enabled only in production
+
+**Implementation Files**
+- `server/replitAuth.ts` - Session setup and Replit OIDC strategy
+- `server/localAuth.ts` - Passport Local Strategy with bcrypt
+- `server/routes.ts` - Authentication routes (POST /api/login for local, GET /api/login for OIDC)
+- `client/src/components/LoginForm.tsx` - Login form component for local development
+- `client/src/pages/Landing.tsx` - Conditional rendering based on environment
+
+**Role-Based Access Control**
+- User roles: Admin, Teacher, Accountant (stored in user schema)
+- All API routes protected with `isAuthenticated` middleware
+- Role assignment happens during user creation/registration
 
 ### External Dependencies
 
