@@ -7,10 +7,12 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import { setupLocalAuth } from "./localAuth";
 
 const DISABLE_AUTH = process.env.DISABLE_AUTH === "true";
+const IS_LOCAL = !process.env.REPL_ID;
 
-if (!DISABLE_AUTH && !process.env.REPLIT_DOMAINS) {
+if (!DISABLE_AUTH && !IS_LOCAL && !process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
 }
 
@@ -78,6 +80,13 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  if (IS_LOCAL) {
+    console.log("🔐 Using local username/password authentication");
+    setupLocalAuth(app);
+    return;
+  }
+
+  console.log("🔐 Using Replit OIDC authentication");
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (
@@ -137,9 +146,17 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return next();
   }
 
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (IS_LOCAL) {
+    return next();
+  }
+
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
