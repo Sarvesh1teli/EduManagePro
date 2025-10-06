@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { StudentTable } from "@/components/StudentTable";
 import { StudentForm } from "@/components/StudentForm";
 import { Button } from "@/components/ui/button";
@@ -10,19 +11,75 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Student } from "@shared/schema";
 
 export default function Students() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
 
-  const mockStudents = [
-    { id: "1", name: "Alice Johnson", rollNumber: "2024001", class: "10", section: "A", feeStatus: "paid" as const, attendance: 95 },
-    { id: "2", name: "Bob Smith", rollNumber: "2024002", class: "10", section: "A", feeStatus: "pending" as const, attendance: 88 },
-    { id: "3", name: "Carol Davis", rollNumber: "2024003", class: "10", section: "B", feeStatus: "overdue" as const, attendance: 76 },
-    { id: "4", name: "David Wilson", rollNumber: "2024004", class: "9", section: "A", feeStatus: "paid" as const, attendance: 92 },
-    { id: "5", name: "Emma Brown", rollNumber: "2024005", class: "9", section: "B", feeStatus: "paid" as const, attendance: 91 },
-    { id: "6", name: "Frank Miller", rollNumber: "2024006", class: "11", section: "A", feeStatus: "pending" as const, attendance: 85 },
-  ];
+  const { data: students = [], isLoading } = useQuery<Student[]>({
+    queryKey: ["/api/students"],
+  });
+
+  const createStudentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("/api/students", "POST", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      setShowAddDialog(false);
+      toast({
+        title: "Success",
+        description: "Student added successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add student",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteStudentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest(`/api/students/${id}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      toast({
+        title: "Success",
+        description: "Student deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete student",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredStudents = students.filter((student) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      student.name.toLowerCase().includes(query) ||
+      student.rollNumber.toLowerCase().includes(query)
+    );
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading students...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -51,10 +108,10 @@ export default function Students() {
       </div>
 
       <StudentTable
-        students={mockStudents}
+        students={filteredStudents}
         onView={(id) => console.log("View student:", id)}
         onEdit={(id) => console.log("Edit student:", id)}
-        onDelete={(id) => console.log("Delete student:", id)}
+        onDelete={(id) => deleteStudentMutation.mutate(id)}
       />
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -63,10 +120,7 @@ export default function Students() {
             <DialogTitle>Add New Student</DialogTitle>
           </DialogHeader>
           <StudentForm
-            onSubmit={(data) => {
-              console.log("Student added:", data);
-              setShowAddDialog(false);
-            }}
+            onSubmit={(data) => createStudentMutation.mutate(data)}
             onCancel={() => setShowAddDialog(false)}
           />
         </DialogContent>
