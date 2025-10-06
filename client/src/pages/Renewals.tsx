@@ -26,49 +26,91 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { FeeRenewal, Student } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Renewals() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [formData, setFormData] = useState({
+    studentId: "",
+    academicYear: "2024-2025",
+    term: "Q1",
+    feeAmount: "",
+    dueDate: "",
+  });
+  const { toast } = useToast();
 
-  const mockRenewals = [
-    {
-      id: 1,
-      studentName: "Alice Johnson",
-      rollNumber: "2024001",
-      class: "10-A",
-      academicYear: "2024-2025",
-      term: "Q1",
-      feeAmount: 2500,
-      paidAmount: 2500,
-      dueDate: "2024-04-30",
-      status: "paid",
+  const { data: renewals = [], isLoading: renewalsLoading } = useQuery<FeeRenewal[]>({
+    queryKey: ["/api/renewals"],
+  });
+
+  const { data: students = [] } = useQuery<Student[]>({
+    queryKey: ["/api/students"],
+  });
+
+  const createRenewalMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("/api/renewals", "POST", {
+        ...data,
+        feeAmount: parseFloat(data.feeAmount),
+        paidAmount: 0,
+        status: "pending",
+      });
     },
-    {
-      id: 2,
-      studentName: "Bob Smith",
-      rollNumber: "2024002",
-      class: "10-A",
-      academicYear: "2024-2025",
-      term: "Q1",
-      feeAmount: 2500,
-      paidAmount: 1000,
-      dueDate: "2024-04-30",
-      status: "partial",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/renewals"] });
+      setShowAddDialog(false);
+      setFormData({
+        studentId: "",
+        academicYear: "2024-2025",
+        term: "Q1",
+        feeAmount: "",
+        dueDate: "",
+      });
+      toast({
+        title: "Success",
+        description: "Fee renewal created successfully",
+      });
     },
-    {
-      id: 3,
-      studentName: "Carol Davis",
-      rollNumber: "2024003",
-      class: "10-B",
-      academicYear: "2024-2025",
-      term: "Q1",
-      feeAmount: 2500,
-      paidAmount: 0,
-      dueDate: "2024-03-15",
-      status: "overdue",
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create renewal",
+        variant: "destructive",
+      });
     },
-  ];
+  });
+
+  const handleSubmit = () => {
+    if (!formData.studentId || !formData.feeAmount || !formData.dueDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    createRenewalMutation.mutate({
+      studentId: parseInt(formData.studentId),
+      academicYear: formData.academicYear,
+      term: formData.term,
+      feeAmount: formData.feeAmount,
+      dueDate: formData.dueDate,
+    });
+  };
+
+  const filteredRenewals = renewals.filter((renewal) => {
+    const student = students.find((s) => s.id === renewal.studentId);
+    const studentName = student ? `${student.firstName} ${student.lastName}` : "";
+    const rollNumber = student?.rollNumber || "";
+    return (
+      studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -101,19 +143,25 @@ export default function Renewals() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <p className="text-sm text-muted-foreground mb-1">Total Renewals</p>
-          <p className="text-2xl font-bold">128</p>
+          <p className="text-2xl font-bold">{renewals.length}</p>
         </Card>
         <Card className="p-4">
           <p className="text-sm text-muted-foreground mb-1">Paid</p>
-          <p className="text-2xl font-bold text-chart-2">84</p>
+          <p className="text-2xl font-bold text-chart-2">
+            {renewals.filter((r) => r.status === "paid").length}
+          </p>
         </Card>
         <Card className="p-4">
           <p className="text-sm text-muted-foreground mb-1">Pending</p>
-          <p className="text-2xl font-bold text-chart-3">32</p>
+          <p className="text-2xl font-bold text-chart-3">
+            {renewals.filter((r) => r.status === "pending" || r.status === "partial").length}
+          </p>
         </Card>
         <Card className="p-4">
           <p className="text-sm text-muted-foreground mb-1">Overdue</p>
-          <p className="text-2xl font-bold text-destructive">12</p>
+          <p className="text-2xl font-bold text-destructive">
+            {renewals.filter((r) => r.status === "overdue").length}
+          </p>
         </Card>
       </div>
 
@@ -131,40 +179,51 @@ export default function Renewals() {
       </div>
 
       <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="font-semibold">Roll Number</TableHead>
-              <TableHead className="font-semibold">Student Name</TableHead>
-              <TableHead className="font-semibold">Class</TableHead>
-              <TableHead className="font-semibold">Academic Year</TableHead>
-              <TableHead className="font-semibold">Term</TableHead>
-              <TableHead className="font-semibold">Fee Amount</TableHead>
-              <TableHead className="font-semibold">Paid Amount</TableHead>
-              <TableHead className="font-semibold">Due Date</TableHead>
-              <TableHead className="font-semibold">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {mockRenewals.map((renewal) => (
-              <TableRow key={renewal.id} data-testid={`row-renewal-${renewal.id}`}>
-                <TableCell className="font-mono text-sm">{renewal.rollNumber}</TableCell>
-                <TableCell className="font-medium">{renewal.studentName}</TableCell>
-                <TableCell>{renewal.class}</TableCell>
-                <TableCell>{renewal.academicYear}</TableCell>
-                <TableCell>{renewal.term}</TableCell>
-                <TableCell className="font-mono">${renewal.feeAmount}</TableCell>
-                <TableCell className="font-mono">${renewal.paidAmount}</TableCell>
-                <TableCell>{renewal.dueDate}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={getStatusColor(renewal.status)}>
-                    {renewal.status}
-                  </Badge>
-                </TableCell>
+        {renewalsLoading ? (
+          <div className="p-8 text-center text-muted-foreground">Loading renewals...</div>
+        ) : filteredRenewals.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">
+            No renewals found. Create your first renewal to get started.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="font-semibold">Roll Number</TableHead>
+                <TableHead className="font-semibold">Student Name</TableHead>
+                <TableHead className="font-semibold">Academic Year</TableHead>
+                <TableHead className="font-semibold">Term</TableHead>
+                <TableHead className="font-semibold">Fee Amount</TableHead>
+                <TableHead className="font-semibold">Paid Amount</TableHead>
+                <TableHead className="font-semibold">Due Date</TableHead>
+                <TableHead className="font-semibold">Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredRenewals.map((renewal) => {
+                const student = students.find((s) => s.id === renewal.studentId);
+                return (
+                  <TableRow key={renewal.id} data-testid={`row-renewal-${renewal.id}`}>
+                    <TableCell className="font-mono text-sm">{student?.rollNumber || "-"}</TableCell>
+                    <TableCell className="font-medium">
+                      {student ? `${student.firstName} ${student.lastName}` : "Unknown"}
+                    </TableCell>
+                    <TableCell>{renewal.academicYear}</TableCell>
+                    <TableCell>{renewal.term}</TableCell>
+                    <TableCell className="font-mono">${renewal.feeAmount}</TableCell>
+                    <TableCell className="font-mono">${renewal.paidAmount}</TableCell>
+                    <TableCell>{renewal.dueDate}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={getStatusColor(renewal.status)}>
+                        {renewal.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -176,24 +235,32 @@ export default function Renewals() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="student">Student</Label>
-                <Select>
+                <Select value={formData.studentId} onValueChange={(value) => setFormData({ ...formData, studentId: value })}>
                   <SelectTrigger className="mt-2" id="student" data-testid="select-student">
                     <SelectValue placeholder="Select student" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">Alice Johnson (2024001)</SelectItem>
-                    <SelectItem value="2">Bob Smith (2024002)</SelectItem>
-                    <SelectItem value="3">Carol Davis (2024003)</SelectItem>
+                    {students.map((student) => (
+                      <SelectItem key={student.id} value={student.id.toString()}>
+                        {student.firstName} {student.lastName} ({student.rollNumber})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label htmlFor="academicYear">Academic Year</Label>
-                <Input id="academicYear" defaultValue="2024-2025" className="mt-2" data-testid="input-academic-year" />
+                <Input 
+                  id="academicYear" 
+                  value={formData.academicYear} 
+                  onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
+                  className="mt-2" 
+                  data-testid="input-academic-year" 
+                />
               </div>
               <div>
                 <Label htmlFor="term">Term</Label>
-                <Select>
+                <Select value={formData.term} onValueChange={(value) => setFormData({ ...formData, term: value })}>
                   <SelectTrigger className="mt-2" id="term" data-testid="select-term">
                     <SelectValue placeholder="Select term" />
                   </SelectTrigger>
@@ -208,19 +275,38 @@ export default function Renewals() {
               </div>
               <div>
                 <Label htmlFor="feeAmount">Fee Amount</Label>
-                <Input type="number" id="feeAmount" placeholder="0.00" className="mt-2" data-testid="input-fee-amount" />
+                <Input 
+                  type="number" 
+                  id="feeAmount" 
+                  value={formData.feeAmount}
+                  onChange={(e) => setFormData({ ...formData, feeAmount: e.target.value })}
+                  placeholder="0.00" 
+                  className="mt-2" 
+                  data-testid="input-fee-amount" 
+                />
               </div>
               <div>
                 <Label htmlFor="dueDate">Due Date</Label>
-                <Input type="date" id="dueDate" className="mt-2" data-testid="input-due-date" />
+                <Input 
+                  type="date" 
+                  id="dueDate" 
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                  className="mt-2" 
+                  data-testid="input-due-date" 
+                />
               </div>
             </div>
             <div className="flex items-center justify-end gap-4 mt-6">
               <Button variant="outline" onClick={() => setShowAddDialog(false)} data-testid="button-cancel">
                 Cancel
               </Button>
-              <Button onClick={() => setShowAddDialog(false)} data-testid="button-save-renewal">
-                Save Renewal
+              <Button 
+                onClick={handleSubmit} 
+                disabled={createRenewalMutation.isPending}
+                data-testid="button-save-renewal"
+              >
+                {createRenewalMutation.isPending ? "Saving..." : "Save Renewal"}
               </Button>
             </div>
           </Card>

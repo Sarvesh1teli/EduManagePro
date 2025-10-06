@@ -22,42 +22,74 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Notification } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Notifications() {
   const [activeTab, setActiveTab] = useState("send");
+  const [formData, setFormData] = useState({
+    recipientType: "",
+    recipientId: "",
+    type: "",
+    subject: "",
+    message: "",
+  });
+  const { toast } = useToast();
 
-  const mockNotifications = [
-    {
-      id: 1,
-      recipientType: "student",
-      recipientName: "Alice Johnson",
-      type: "email",
-      subject: "Fee Payment Reminder",
-      message: "Your quarterly fee payment is due on April 30th.",
-      status: "sent",
-      sentAt: "2024-01-15 10:30 AM",
+  const { data: notifications = [], isLoading } = useQuery<Notification[]>({
+    queryKey: ["/api/notifications"],
+  });
+
+  const createNotificationMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("/api/notifications", "POST", {
+        ...data,
+        status: "pending",
+      });
     },
-    {
-      id: 2,
-      recipientType: "guardian",
-      recipientName: "Bob Smith (Guardian)",
-      type: "sms",
-      subject: null,
-      message: "Reminder: Parent-teacher meeting on Jan 20th.",
-      status: "sent",
-      sentAt: "2024-01-14 2:15 PM",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      setFormData({
+        recipientType: "",
+        recipientId: "",
+        type: "",
+        subject: "",
+        message: "",
+      });
+      setActiveTab("history");
+      toast({
+        title: "Success",
+        description: "Notification queued successfully",
+      });
     },
-    {
-      id: 3,
-      recipientType: "staff",
-      recipientName: "Dr. Sarah Johnson",
-      type: "email",
-      subject: "Staff Meeting",
-      message: "Monthly staff meeting scheduled for Jan 25th.",
-      status: "pending",
-      sentAt: null,
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send notification",
+        variant: "destructive",
+      });
     },
-  ];
+  });
+
+  const handleSubmit = () => {
+    if (!formData.recipientType || !formData.type || !formData.message) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    createNotificationMutation.mutate({
+      recipientType: formData.recipientType,
+      recipientId: formData.recipientId || null,
+      type: formData.type,
+      subject: formData.subject || null,
+      message: formData.message,
+    });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -85,7 +117,9 @@ export default function Notifications() {
             <Mail className="w-8 h-8 text-primary" />
             <div>
               <p className="text-sm text-muted-foreground">Emails Sent</p>
-              <p className="text-2xl font-bold">156</p>
+              <p className="text-2xl font-bold">
+                {notifications.filter((n) => n.type === "email" && n.status === "sent").length}
+              </p>
             </div>
           </div>
         </Card>
@@ -94,7 +128,9 @@ export default function Notifications() {
             <MessageSquare className="w-8 h-8 text-chart-2" />
             <div>
               <p className="text-sm text-muted-foreground">SMS Sent</p>
-              <p className="text-2xl font-bold">89</p>
+              <p className="text-2xl font-bold">
+                {notifications.filter((n) => n.type === "sms" && n.status === "sent").length}
+              </p>
             </div>
           </div>
         </Card>
@@ -103,7 +139,9 @@ export default function Notifications() {
             <Send className="w-8 h-8 text-chart-3" />
             <div>
               <p className="text-sm text-muted-foreground">Pending</p>
-              <p className="text-2xl font-bold">12</p>
+              <p className="text-2xl font-bold">
+                {notifications.filter((n) => n.status === "pending").length}
+              </p>
             </div>
           </div>
         </Card>
@@ -122,7 +160,7 @@ export default function Notifications() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="recipientType">Recipient Type</Label>
-                  <Select>
+                  <Select value={formData.recipientType} onValueChange={(value) => setFormData({ ...formData, recipientType: value })}>
                     <SelectTrigger className="mt-2" id="recipientType" data-testid="select-recipient-type">
                       <SelectValue placeholder="Select recipient type" />
                     </SelectTrigger>
@@ -137,7 +175,7 @@ export default function Notifications() {
                 </div>
                 <div>
                   <Label htmlFor="notificationType">Notification Type</Label>
-                  <Select>
+                  <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
                     <SelectTrigger className="mt-2" id="notificationType" data-testid="select-notification-type">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -151,24 +189,47 @@ export default function Notifications() {
               </div>
               <div>
                 <Label htmlFor="subject">Subject (Email only)</Label>
-                <Input id="subject" placeholder="Enter subject" className="mt-2" data-testid="input-subject" />
+                <Input 
+                  id="subject" 
+                  value={formData.subject}
+                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  placeholder="Enter subject" 
+                  className="mt-2" 
+                  data-testid="input-subject" 
+                />
               </div>
               <div>
                 <Label htmlFor="message">Message</Label>
                 <Textarea
                   id="message"
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   placeholder="Enter your message"
                   className="mt-2 min-h-32"
                   data-testid="textarea-message"
                 />
               </div>
               <div className="flex items-center justify-end gap-4">
-                <Button variant="outline" data-testid="button-cancel">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setFormData({
+                    recipientType: "",
+                    recipientId: "",
+                    type: "",
+                    subject: "",
+                    message: "",
+                  })}
+                  data-testid="button-cancel"
+                >
                   Cancel
                 </Button>
-                <Button data-testid="button-send-notification">
+                <Button 
+                  onClick={handleSubmit} 
+                  disabled={createNotificationMutation.isPending}
+                  data-testid="button-send-notification"
+                >
                   <Send className="w-4 h-4 mr-2" />
-                  Send Notification
+                  {createNotificationMutation.isPending ? "Sending..." : "Send Notification"}
                 </Button>
               </div>
             </div>
@@ -188,39 +249,49 @@ export default function Notifications() {
 
         <TabsContent value="history" className="space-y-6">
           <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="font-semibold">Recipient</TableHead>
-                  <TableHead className="font-semibold">Type</TableHead>
-                  <TableHead className="font-semibold">Subject</TableHead>
-                  <TableHead className="font-semibold">Message</TableHead>
-                  <TableHead className="font-semibold">Status</TableHead>
-                  <TableHead className="font-semibold">Sent At</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockNotifications.map((notification) => (
-                  <TableRow key={notification.id} data-testid={`row-notification-${notification.id}`}>
-                    <TableCell className="font-medium">{notification.recipientName}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {notification.type === "email" ? <Mail className="w-3 h-3 mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
-                        {notification.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{notification.subject || "-"}</TableCell>
-                    <TableCell className="max-w-xs truncate">{notification.message}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getStatusColor(notification.status)}>
-                        {notification.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">{notification.sentAt || "-"}</TableCell>
+            {isLoading ? (
+              <div className="p-8 text-center text-muted-foreground">Loading notifications...</div>
+            ) : notifications.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                No notifications sent yet. Send your first notification to get started.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-semibold">Recipient Type</TableHead>
+                    <TableHead className="font-semibold">Type</TableHead>
+                    <TableHead className="font-semibold">Subject</TableHead>
+                    <TableHead className="font-semibold">Message</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Created</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {notifications.map((notification) => (
+                    <TableRow key={notification.id} data-testid={`row-notification-${notification.id}`}>
+                      <TableCell className="font-medium capitalize">{notification.recipientType}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {notification.type === "email" ? <Mail className="w-3 h-3 mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
+                          {notification.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{notification.subject || "-"}</TableCell>
+                      <TableCell className="max-w-xs truncate">{notification.message}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={getStatusColor(notification.status)}>
+                          {notification.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {new Date(notification.createdAt).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
         </TabsContent>
       </Tabs>
