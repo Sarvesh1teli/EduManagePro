@@ -1,31 +1,79 @@
+import { useQuery } from "@tanstack/react-query";
 import { StatsCard } from "@/components/StatsCard";
 import { FinancialSummary } from "@/components/FinancialSummary";
-import { RecentActivity } from "@/components/RecentActivity";
 import { QuickActions } from "@/components/QuickActions";
 import { Users, GraduationCap, DollarSign, AlertCircle } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import type { Payment, Expense, Student, Staff } from "@shared/schema";
+import { format } from "date-fns";
+import { useLocation } from "wouter";
 
 export default function Dashboard() {
+  const [, setLocation] = useLocation();
+
+  const { data: payments = [], isLoading: paymentsLoading } = useQuery<Payment[]>({
+    queryKey: ["/api/payments"],
+  });
+
+  const { data: expenses = [], isLoading: expensesLoading } = useQuery<Expense[]>({
+    queryKey: ["/api/expenses"],
+  });
+
+  const { data: students = [], isLoading: studentsLoading } = useQuery<Student[]>({
+    queryKey: ["/api/students"],
+  });
+
+  const { data: staff = [], isLoading: staffLoading } = useQuery<Staff[]>({
+    queryKey: ["/api/staff"],
+  });
+
+  const totalIncome = payments
+    .filter((p) => p.status === "completed")
+    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
+  const totalExpenses = expenses
+    .filter((e) => e.status === "paid")
+    .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+  const pendingPayments = payments
+    .filter((p) => p.status === "pending")
+    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
   const statsData = [
-    { title: "Total Students", value: "1,234", icon: GraduationCap, trend: { value: "12% from last month", isPositive: true } },
-    { title: "Total Staff", value: "86", icon: Users, trend: { value: "3 new hires", isPositive: true } },
-    { title: "Monthly Revenue", value: "$125,000", icon: DollarSign, trend: { value: "8% increase", isPositive: true } },
-    { title: "Pending Fees", value: "$18,450", icon: AlertCircle, trend: { value: "5% decrease", isPositive: false } },
+    {
+      title: "Total Students",
+      value: students.length.toString(),
+      icon: GraduationCap,
+      trend: { value: `${students.length} enrolled`, isPositive: true },
+    },
+    {
+      title: "Total Staff",
+      value: staff.length.toString(),
+      icon: Users,
+      trend: { value: `${staff.filter((s) => s.status === "active").length} active`, isPositive: true },
+    },
+    {
+      title: "Total Income",
+      value: `$${totalIncome.toFixed(0)}`,
+      icon: DollarSign,
+      trend: { value: `${payments.filter((p) => p.status === "completed").length} payments`, isPositive: true },
+    },
+    {
+      title: "Pending Payments",
+      value: `$${pendingPayments.toFixed(0)}`,
+      icon: AlertCircle,
+      trend: { value: `${payments.filter((p) => p.status === "pending").length} pending`, isPositive: false },
+    },
   ];
 
   const financialData = {
-    income: 125000,
-    expenses: 78500,
-    balance: 46500,
-    period: "January 2024",
+    income: totalIncome,
+    expenses: totalExpenses,
+    balance: totalIncome - totalExpenses,
+    period: format(new Date(), "MMMM yyyy"),
   };
 
-  const activities = [
-    { id: "1", user: "John Doe", action: "added new student", target: "Alice Johnson", timestamp: new Date(Date.now() - 1000 * 60 * 5), type: "student" as const },
-    { id: "2", user: "Jane Smith", action: "recorded payment from", target: "Bob Smith", timestamp: new Date(Date.now() - 1000 * 60 * 15), type: "financial" as const },
-    { id: "3", user: "Admin", action: "updated staff member", target: "Carol Davis", timestamp: new Date(Date.now() - 1000 * 60 * 30), type: "staff" as const },
-    { id: "4", user: "Accountant", action: "approved vendor", target: "ABC Supplies", timestamp: new Date(Date.now() - 1000 * 60 * 60), type: "vendor" as const },
-    { id: "5", user: "Sarah Wilson", action: "generated report", target: "Monthly Financial Report", timestamp: new Date(Date.now() - 1000 * 60 * 90), type: "financial" as const },
-  ];
+  const isLoading = paymentsLoading || expensesLoading || studentsLoading || staffLoading;
 
   return (
     <div className="space-y-6">
@@ -34,26 +82,55 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Welcome back! Here's what's happening today.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsData.map((stat) => (
-          <StatsCard key={stat.title} {...stat} />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {statsData.map((stat) => (
+              <StatsCard key={stat.title} {...stat} />
+            ))}
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <FinancialSummary data={financialData} />
-          <RecentActivity activities={activities} />
-        </div>
-        <div>
-          <QuickActions
-            onAddStudent={() => console.log("Navigate to add student")}
-            onRecordPayment={() => console.log("Open payment form")}
-            onAddExpense={() => console.log("Open expense form")}
-            onGenerateReport={() => console.log("Navigate to reports")}
-          />
-        </div>
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <FinancialSummary data={financialData} />
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+                <div className="space-y-3">
+                  {payments.slice(0, 5).map((payment) => {
+                    const student = students.find((s) => s.id === payment.studentId);
+                    return (
+                      <div key={payment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-sm">Payment received from {student?.name || `Student #${payment.studentId}`}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {payment.paymentType} • {payment.paymentDate && format(new Date(payment.paymentDate), "MMM dd, yyyy")}
+                          </p>
+                        </div>
+                        <p className="font-mono font-semibold">${payment.amount}</p>
+                      </div>
+                    );
+                  })}
+                  {payments.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No recent activity</p>
+                  )}
+                </div>
+              </Card>
+            </div>
+            <div>
+              <QuickActions
+                onAddStudent={() => setLocation("/students")}
+                onRecordPayment={() => setLocation("/financial")}
+                onAddExpense={() => setLocation("/financial")}
+                onGenerateReport={() => setLocation("/reports")}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

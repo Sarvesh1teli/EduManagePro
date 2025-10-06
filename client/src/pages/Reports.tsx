@@ -1,93 +1,78 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StudentPaymentReport } from "@/components/StudentPaymentReport";
-import { StaffSalaryReport } from "@/components/StaffSalaryReport";
-import { ExpenseBreakdownReport } from "@/components/ExpenseBreakdownReport";
-import { IncomeVsExpenditureReport } from "@/components/IncomeVsExpenditureReport";
-import { VendorPaymentReport } from "@/components/VendorPaymentReport";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { FileText, DollarSign, TrendingUp, Users, ShoppingBag } from "lucide-react";
+import type { Payment, Expense, Student, Staff } from "@shared/schema";
+import { format } from "date-fns";
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState("student-payments");
 
-  const studentPaymentData = [
-    { id: "1", studentName: "Alice Johnson", rollNumber: "2024001", class: "10-A", feeType: "Tuition Fee", amount: 2500, paymentDate: "2024-01-15", status: "paid" as const, balance: 0 },
-    { id: "2", studentName: "Bob Smith", rollNumber: "2024002", class: "10-A", feeType: "Tuition Fee", amount: 2500, paymentDate: "", status: "pending" as const, balance: 2500 },
-    { id: "3", studentName: "Carol Davis", rollNumber: "2024003", class: "10-B", feeType: "Tuition Fee", amount: 2500, paymentDate: "", status: "overdue" as const, balance: 2500 },
-    { id: "4", studentName: "David Wilson", rollNumber: "2024004", class: "9-A", feeType: "Exam Fee", amount: 500, paymentDate: "2024-01-14", status: "paid" as const, balance: 0 },
-    { id: "5", studentName: "Emma Brown", rollNumber: "2024005", class: "9-B", feeType: "Tuition Fee", amount: 2500, paymentDate: "2024-01-13", status: "paid" as const, balance: 0 },
-  ];
+  const { data: payments = [], isLoading: paymentsLoading } = useQuery<Payment[]>({
+    queryKey: ["/api/payments"],
+  });
 
-  const salaryData = [
-    { id: "1", employeeName: "Dr. Sarah Johnson", employeeId: "EMP001", department: "Science", designation: "Head Teacher", basicSalary: 5000, allowances: 1000, deductions: 500, netSalary: 5500, paymentDate: "2024-01-31", status: "paid" as const },
-    { id: "2", employeeName: "Michael Brown", employeeId: "EMP002", department: "Mathematics", designation: "Teacher", basicSalary: 4000, allowances: 800, deductions: 400, netSalary: 4400, paymentDate: "2024-01-31", status: "paid" as const },
-    { id: "3", employeeName: "Emily Davis", employeeId: "EMP003", department: "English", designation: "Teacher", basicSalary: 4000, allowances: 800, deductions: 400, netSalary: 4400, paymentDate: "", status: "pending" as const },
-    { id: "4", employeeName: "Robert Wilson", employeeId: "EMP004", department: "Administration", designation: "Clerk", basicSalary: 3000, allowances: 500, deductions: 300, netSalary: 3200, paymentDate: "2024-01-31", status: "paid" as const },
-  ];
+  const { data: expenses = [], isLoading: expensesLoading } = useQuery<Expense[]>({
+    queryKey: ["/api/expenses"],
+  });
 
-  const expenseData = [
-    { id: "1", category: "Salaries", amount: 17500, percentage: 45.2, count: 4 },
-    { id: "2", category: "Utilities", amount: 8500, percentage: 21.9, count: 12 },
-    { id: "3", category: "Supplies", amount: 5200, percentage: 13.4, count: 18 },
-    { id: "4", category: "Maintenance", amount: 4300, percentage: 11.1, count: 8 },
-    { id: "5", category: "Transport", amount: 2100, percentage: 5.4, count: 6 },
-    { id: "6", category: "Other", amount: 1150, percentage: 3.0, count: 5 },
-  ];
+  const { data: students = [] } = useQuery<Student[]>({
+    queryKey: ["/api/students"],
+  });
 
-  const incomeExpenseData = [
-    { month: "September 2023", income: 125000, expenditure: 78500, balance: 46500 },
-    { month: "October 2023", income: 128000, expenditure: 82000, balance: 46000 },
-    { month: "November 2023", income: 130000, expenditure: 79000, balance: 51000 },
-    { month: "December 2023", income: 135000, expenditure: 85000, balance: 50000 },
-    { month: "January 2024", income: 138000, expenditure: 87500, balance: 50500 },
-  ];
+  const { data: staff = [] } = useQuery<Staff[]>({
+    queryKey: ["/api/staff"],
+  });
 
-  const vendorPaymentData = [
-    { id: "1", vendorName: "ABC Supplies Co.", category: "Stationery", invoiceNumber: "INV-2024-001", amount: 1200, paymentDate: "2024-01-15", dueDate: "2024-01-20", status: "paid" as const },
-    { id: "2", vendorName: "Tech Solutions Inc.", category: "Electronics", invoiceNumber: "INV-2024-002", amount: 3500, paymentDate: "", dueDate: "2024-01-25", status: "pending" as const },
-    { id: "3", vendorName: "Green Catering", category: "Food & Beverage", invoiceNumber: "INV-2024-003", amount: 850, paymentDate: "2024-01-10", dueDate: "2024-01-15", status: "paid" as const },
-    { id: "4", vendorName: "Fix-It Services", category: "Maintenance", invoiceNumber: "INV-2024-004", amount: 2200, paymentDate: "", dueDate: "2024-01-18", status: "overdue" as const },
-  ];
+  const getStudentName = (studentId: number) => {
+    const student = students.find((s) => s.id === studentId);
+    return student?.name || `Student #${studentId}`;
+  };
 
-  const reportCards = [
-    {
-      id: "student-payments",
-      title: "Student Payment Reports",
-      description: "Individual and collective payment tracking",
-      icon: DollarSign,
-      color: "primary"
-    },
-    {
-      id: "staff-salaries",
-      title: "Staff Salary Reports",
-      description: "Salary disbursement and summaries",
-      icon: Users,
-      color: "chart-2"
-    },
-    {
-      id: "expense-breakdown",
-      title: "Expense Breakdown",
-      description: "Category-wise expense analysis",
-      icon: TrendingUp,
-      color: "chart-3"
-    },
-    {
-      id: "income-expenditure",
-      title: "Income vs. Expenditure",
-      description: "Financial comparison and trends",
-      icon: FileText,
-      color: "chart-4"
-    },
-    {
-      id: "vendor-payments",
-      title: "Vendor Payment Tracking",
-      description: "Vendor payment status monitoring",
-      icon: ShoppingBag,
-      color: "chart-5"
+  const getStudentClass = (studentId: number) => {
+    const student = students.find((s) => s.id === studentId);
+    return student?.class || "-";
+  };
+
+  const expensesByCategory = expenses.reduce((acc, expense) => {
+    const category = expense.category;
+    if (!acc[category]) {
+      acc[category] = { amount: 0, count: 0 };
     }
-  ];
+    acc[category].amount += parseFloat(expense.amount);
+    acc[category].count += 1;
+    return acc;
+  }, {} as Record<string, { amount: number; count: number }>);
+
+  const totalExpenses = Object.values(expensesByCategory).reduce((sum, cat) => sum + cat.amount, 0);
+
+  const expenseData = Object.entries(expensesByCategory).map(([category, data], index) => ({
+    id: String(index + 1),
+    category,
+    amount: data.amount,
+    percentage: totalExpenses > 0 ? (data.amount / totalExpenses) * 100 : 0,
+    count: data.count,
+  }));
+
+  const totalIncome = payments
+    .filter((p) => p.status === "completed")
+    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
+  const totalPaidExpenses = expenses
+    .filter((e) => e.status === "paid")
+    .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+  const isLoading = paymentsLoading || expensesLoading;
 
   return (
     <div className="space-y-6">
@@ -96,113 +81,172 @@ export default function Reports() {
         <p className="text-muted-foreground">Comprehensive financial and operational reports</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="flex items-center gap-4 overflow-x-auto pb-2">
-          <TabsList className="inline-flex">
-            <TabsTrigger value="student-payments" data-testid="tab-student-payments">
-              <DollarSign className="w-4 h-4 mr-2" />
-              Student Payments
-            </TabsTrigger>
-            <TabsTrigger value="staff-salaries" data-testid="tab-staff-salaries">
-              <Users className="w-4 h-4 mr-2" />
-              Staff Salaries
-            </TabsTrigger>
-            <TabsTrigger value="expense-breakdown" data-testid="tab-expense-breakdown">
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Expense Breakdown
-            </TabsTrigger>
-            <TabsTrigger value="income-expenditure" data-testid="tab-income-expenditure">
-              <FileText className="w-4 h-4 mr-2" />
-              Income vs. Expenditure
-            </TabsTrigger>
-            <TabsTrigger value="vendor-payments" data-testid="tab-vendor-payments">
-              <ShoppingBag className="w-4 h-4 mr-2" />
-              Vendor Payments
-            </TabsTrigger>
-          </TabsList>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Loading reports...</p>
         </div>
+      ) : (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <div className="flex items-center gap-4 overflow-x-auto pb-2">
+            <TabsList className="inline-flex">
+              <TabsTrigger value="student-payments" data-testid="tab-student-payments">
+                <DollarSign className="w-4 h-4 mr-2" />
+                Student Payments
+              </TabsTrigger>
+              <TabsTrigger value="expense-breakdown" data-testid="tab-expense-breakdown">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Expense Breakdown
+              </TabsTrigger>
+              <TabsTrigger value="financial-summary" data-testid="tab-financial-summary">
+                <FileText className="w-4 h-4 mr-2" />
+                Financial Summary
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-        <TabsContent value="student-payments" className="space-y-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Report Overview</h3>
-            <p className="text-muted-foreground">
-              Track student fee payments, outstanding balances, and payment history. Generate individual student reports
-              or collective summaries by class, section, or academic period.
-            </p>
-          </Card>
-          <StudentPaymentReport
-            payments={studentPaymentData}
-            reportType="collective"
-            totalPaid={5500}
-            totalPending={2500}
-            totalOverdue={2500}
-          />
-        </TabsContent>
+          <TabsContent value="student-payments" className="space-y-6">
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Student Payment Report</h3>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold">Student Name</TableHead>
+                      <TableHead className="font-semibold">Class</TableHead>
+                      <TableHead className="font-semibold">Payment Type</TableHead>
+                      <TableHead className="font-semibold">Amount</TableHead>
+                      <TableHead className="font-semibold">Date</TableHead>
+                      <TableHead className="font-semibold">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payments.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          No payment records available
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      payments.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell className="font-medium">{getStudentName(payment.studentId)}</TableCell>
+                          <TableCell>{getStudentClass(payment.studentId)}</TableCell>
+                          <TableCell>{payment.paymentType}</TableCell>
+                          <TableCell className="font-mono">${payment.amount}</TableCell>
+                          <TableCell>{payment.paymentDate && format(new Date(payment.paymentDate), "MMM dd, yyyy")}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                payment.status === "completed"
+                                  ? "bg-chart-2/10 text-chart-2 border-chart-2/20"
+                                  : "bg-chart-3/10 text-chart-3 border-chart-3/20"
+                              }
+                            >
+                              {payment.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Total Payments Received:</span>
+                  <span className="text-xl font-semibold font-mono">${totalIncome.toFixed(2)}</span>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="staff-salaries" className="space-y-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Report Overview</h3>
-            <p className="text-muted-foreground">
-              Monitor staff salary disbursements, track pending payments, and analyze salary structure including basic salary,
-              allowances, and deductions for all staff members.
-            </p>
-          </Card>
-          <StaffSalaryReport
-            salaries={salaryData}
-            totalPaid={13100}
-            totalPending={4400}
-            period="January 2024"
-          />
-        </TabsContent>
+          <TabsContent value="expense-breakdown" className="space-y-6">
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Expense Breakdown by Category</h3>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold">Category</TableHead>
+                      <TableHead className="font-semibold">Amount</TableHead>
+                      <TableHead className="font-semibold">Percentage</TableHead>
+                      <TableHead className="font-semibold">Count</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {expenseData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                          No expense records available
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      expenseData.map((expense) => (
+                        <TableRow key={expense.id}>
+                          <TableCell className="font-medium">{expense.category}</TableCell>
+                          <TableCell className="font-mono">${expense.amount.toFixed(2)}</TableCell>
+                          <TableCell>{expense.percentage.toFixed(1)}%</TableCell>
+                          <TableCell>{expense.count}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Total Expenses:</span>
+                  <span className="text-xl font-semibold font-mono">${totalPaidExpenses.toFixed(2)}</span>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="expense-breakdown" className="space-y-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Report Overview</h3>
-            <p className="text-muted-foreground">
-              Analyze expenses by category to understand spending patterns. View distribution percentages, transaction counts,
-              and identify areas for cost optimization.
-            </p>
-          </Card>
-          <ExpenseBreakdownReport
-            expenses={expenseData}
-            totalExpenses={38750}
-            period="January 2024"
-          />
-        </TabsContent>
-
-        <TabsContent value="income-expenditure" className="space-y-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Report Overview</h3>
-            <p className="text-muted-foreground">
-              Compare income against expenditure across months to track financial health. Monitor surplus or deficit trends
-              and make informed budgeting decisions.
-            </p>
-          </Card>
-          <IncomeVsExpenditureReport
-            data={incomeExpenseData}
-            totalIncome={656000}
-            totalExpenditure={412000}
-            netBalance={244000}
-            period="September 2023 - January 2024"
-          />
-        </TabsContent>
-
-        <TabsContent value="vendor-payments" className="space-y-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Report Overview</h3>
-            <p className="text-muted-foreground">
-              Track payments to vendors, monitor due dates, and manage outstanding invoices. Ensure timely payments
-              and maintain healthy vendor relationships.
-            </p>
-          </Card>
-          <VendorPaymentReport
-            payments={vendorPaymentData}
-            totalPaid={2050}
-            totalPending={5700}
-            period="January 2024"
-          />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="financial-summary" className="space-y-6">
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Financial Summary</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-chart-2/10 border border-chart-2/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Total Income</p>
+                    <p className="text-2xl font-semibold font-mono text-chart-2">${totalIncome.toFixed(2)}</p>
+                  </div>
+                  <div className="p-4 bg-chart-3/10 border border-chart-3/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Total Expenses</p>
+                    <p className="text-2xl font-semibold font-mono text-chart-3">${totalPaidExpenses.toFixed(2)}</p>
+                  </div>
+                  <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Balance</p>
+                    <p className="text-2xl font-semibold font-mono text-primary">${(totalIncome - totalPaidExpenses).toFixed(2)}</p>
+                  </div>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <h4 className="font-medium mb-2">Summary Statistics</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Total Students</p>
+                      <p className="text-lg font-semibold">{students.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total Staff</p>
+                      <p className="text-lg font-semibold">{staff.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total Payments</p>
+                      <p className="text-lg font-semibold">{payments.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total Expenses</p>
+                      <p className="text-lg font-semibold">{expenses.length}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }
