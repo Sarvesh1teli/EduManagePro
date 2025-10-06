@@ -8,6 +8,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
+      if (process.env.DISABLE_AUTH === "true") {
+        const mockUserId = "local-dev-user";
+        let user = await storage.getUser(mockUserId);
+        
+        if (!user) {
+          user = await storage.upsertUser({
+            id: mockUserId,
+            email: "dev@localhost",
+            firstName: "Local",
+            lastName: "Developer",
+            role: "Admin",
+          });
+        }
+        
+        return res.json(user);
+      }
+      
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       res.json(user);
