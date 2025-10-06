@@ -9,22 +9,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2, Eye } from "lucide-react";
-
-interface Vendor {
-  id: string;
-  name: string;
-  category: string;
-  contactPerson: string;
-  phone: string;
-  status: "active" | "inactive";
-  totalOrders: number;
-}
+import type { Vendor } from "@shared/schema";
 
 interface VendorTableProps {
   vendors: Vendor[];
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onView?: (id: string) => void;
+  onEdit?: (id: number) => void;
+  onDelete?: (id: number) => void;
+  onView?: (id: number) => void;
 }
 
 export function VendorTable({ vendors, onEdit, onDelete, onView }: VendorTableProps) {
@@ -37,8 +28,8 @@ export function VendorTable({ vendors, onEdit, onDelete, onView }: VendorTablePr
             <TableHead className="font-semibold">Category</TableHead>
             <TableHead className="font-semibold">Contact Person</TableHead>
             <TableHead className="font-semibold">Phone</TableHead>
+            <TableHead className="font-semibold">Email</TableHead>
             <TableHead className="font-semibold">Status</TableHead>
-            <TableHead className="font-semibold">Total Orders</TableHead>
             <TableHead className="text-right font-semibold">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -53,6 +44,9 @@ export function VendorTable({ vendors, onEdit, onDelete, onView }: VendorTablePr
               <TableCell className="font-mono text-sm" data-testid={`text-phone-${vendor.id}`}>
                 {vendor.phone}
               </TableCell>
+              <TableCell className="text-sm" data-testid={`text-email-${vendor.id}`}>
+                {vendor.email || "-"}
+              </TableCell>
               <TableCell>
                 <Badge
                   variant="outline"
@@ -62,7 +56,6 @@ export function VendorTable({ vendors, onEdit, onDelete, onView }: VendorTablePr
                   {vendor.status}
                 </Badge>
               </TableCell>
-              <TableCell data-testid={`text-orders-${vendor.id}`}>{vendor.totalOrders}</TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
                   <Button variant="ghost" size="icon" onClick={() => onView?.(vendor.id)} data-testid={`button-view-${vendor.id}`}>

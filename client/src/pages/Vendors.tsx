@@ -1,18 +1,56 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { VendorTable } from "@/components/VendorTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Vendor } from "@shared/schema";
 
 export default function Vendors() {
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
 
-  const mockVendors = [
-    { id: "1", name: "ABC Supplies Co.", category: "Stationery", contactPerson: "John Smith", phone: "+1 234 567 8900", status: "active" as const, totalOrders: 45 },
-    { id: "2", name: "Tech Solutions Inc.", category: "Electronics", contactPerson: "Jane Doe", phone: "+1 234 567 8901", status: "active" as const, totalOrders: 28 },
-    { id: "3", name: "Green Catering", category: "Food & Beverage", contactPerson: "Bob Wilson", phone: "+1 234 567 8902", status: "inactive" as const, totalOrders: 12 },
-    { id: "4", name: "Fix-It Services", category: "Maintenance", contactPerson: "Sarah Davis", phone: "+1 234 567 8903", status: "active" as const, totalOrders: 33 },
-  ];
+  const { data: vendors = [], isLoading } = useQuery<Vendor[]>({
+    queryKey: ["/api/vendors"],
+  });
+
+  const deleteVendorMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest(`/api/vendors/${id}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      toast({
+        title: "Success",
+        description: "Vendor deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete vendor",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredVendors = vendors.filter((vendor) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      vendor.name.toLowerCase().includes(query) ||
+      vendor.category.toLowerCase().includes(query)
+    );
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading vendors...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -41,10 +79,10 @@ export default function Vendors() {
       </div>
 
       <VendorTable
-        vendors={mockVendors}
+        vendors={filteredVendors}
         onView={(id) => console.log("View vendor:", id)}
         onEdit={(id) => console.log("Edit vendor:", id)}
-        onDelete={(id) => console.log("Delete vendor:", id)}
+        onDelete={(id) => deleteVendorMutation.mutate(id)}
       />
     </div>
   );
