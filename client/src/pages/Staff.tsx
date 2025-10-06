@@ -1,19 +1,56 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { StaffTable } from "@/components/StaffTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Staff } from "@shared/schema";
 
 export default function Staff() {
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
 
-  const mockStaff = [
-    { id: "1", name: "Dr. Sarah Johnson", employeeId: "EMP001", department: "Science", designation: "Head Teacher", email: "sarah.j@school.com", phone: "+1 234 567 8900", status: "active" as const },
-    { id: "2", name: "Michael Brown", employeeId: "EMP002", department: "Mathematics", designation: "Teacher", email: "michael.b@school.com", phone: "+1 234 567 8901", status: "active" as const },
-    { id: "3", name: "Emily Davis", employeeId: "EMP003", department: "English", designation: "Teacher", email: "emily.d@school.com", phone: "+1 234 567 8902", status: "on-leave" as const },
-    { id: "4", name: "Robert Wilson", employeeId: "EMP004", department: "Administration", designation: "Clerk", email: "robert.w@school.com", phone: "+1 234 567 8903", status: "active" as const },
-    { id: "5", name: "Linda Martinez", employeeId: "EMP005", department: "History", designation: "Teacher", email: "linda.m@school.com", phone: "+1 234 567 8904", status: "active" as const },
-  ];
+  const { data: staff = [], isLoading } = useQuery<Staff[]>({
+    queryKey: ["/api/staff"],
+  });
+
+  const deleteStaffMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest(`/api/staff/${id}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/staff"] });
+      toast({
+        title: "Success",
+        description: "Staff member deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete staff member",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredStaff = staff.filter((member) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      member.name.toLowerCase().includes(query) ||
+      member.employeeId.toLowerCase().includes(query)
+    );
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading staff...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -42,10 +79,10 @@ export default function Staff() {
       </div>
 
       <StaffTable
-        staff={mockStaff}
+        staff={filteredStaff}
         onView={(id) => console.log("View staff:", id)}
         onEdit={(id) => console.log("Edit staff:", id)}
-        onDelete={(id) => console.log("Delete staff:", id)}
+        onDelete={(id) => deleteStaffMutation.mutate(id)}
       />
     </div>
   );

@@ -9,33 +9,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2, Eye } from "lucide-react";
-
-interface Student {
-  id: string;
-  name: string;
-  rollNumber: string;
-  class: string;
-  section: string;
-  feeStatus: "paid" | "pending" | "overdue";
-  attendance: number;
-}
+import type { Student } from "@shared/schema";
 
 interface StudentTableProps {
   students: Student[];
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onView?: (id: string) => void;
+  onEdit?: (id: number) => void;
+  onDelete?: (id: number) => void;
+  onView?: (id: number) => void;
 }
 
 export function StudentTable({ students, onEdit, onDelete, onView }: StudentTableProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "paid":
+      case "active":
         return "bg-chart-2/10 text-chart-2 border-chart-2/20";
-      case "pending":
+      case "inactive":
+        return "bg-muted/50 text-muted-foreground border-muted";
+      case "graduated":
         return "bg-chart-3/10 text-chart-3 border-chart-3/20";
-      case "overdue":
-        return "bg-destructive/10 text-destructive border-destructive/20";
       default:
         return "";
     }
@@ -50,8 +41,8 @@ export function StudentTable({ students, onEdit, onDelete, onView }: StudentTabl
             <TableHead className="font-semibold">Name</TableHead>
             <TableHead className="font-semibold">Class</TableHead>
             <TableHead className="font-semibold">Section</TableHead>
-            <TableHead className="font-semibold">Fee Status</TableHead>
-            <TableHead className="font-semibold">Attendance</TableHead>
+            <TableHead className="font-semibold">Phone</TableHead>
+            <TableHead className="font-semibold">Status</TableHead>
             <TableHead className="text-right font-semibold">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -66,12 +57,12 @@ export function StudentTable({ students, onEdit, onDelete, onView }: StudentTabl
               </TableCell>
               <TableCell data-testid={`text-class-${student.id}`}>{student.class}</TableCell>
               <TableCell data-testid={`text-section-${student.id}`}>{student.section}</TableCell>
+              <TableCell data-testid={`text-phone-${student.id}`}>{student.phone || "-"}</TableCell>
               <TableCell>
-                <Badge variant="outline" className={getStatusColor(student.feeStatus)} data-testid={`badge-status-${student.id}`}>
-                  {student.feeStatus}
+                <Badge variant="outline" className={getStatusColor(student.status)} data-testid={`badge-status-${student.id}`}>
+                  {student.status}
                 </Badge>
               </TableCell>
-              <TableCell data-testid={`text-attendance-${student.id}`}>{student.attendance}%</TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
                   <Button

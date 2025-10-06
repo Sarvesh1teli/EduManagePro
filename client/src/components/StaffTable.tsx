@@ -9,23 +9,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2, Eye } from "lucide-react";
-
-interface Staff {
-  id: string;
-  name: string;
-  employeeId: string;
-  department: string;
-  designation: string;
-  email: string;
-  phone: string;
-  status: "active" | "on-leave" | "inactive";
-}
+import type { Staff } from "@shared/schema";
 
 interface StaffTableProps {
   staff: Staff[];
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onView?: (id: string) => void;
+  onEdit?: (id: number) => void;
+  onDelete?: (id: number) => void;
+  onView?: (id: number) => void;
 }
 
 export function StaffTable({ staff, onEdit, onDelete, onView }: StaffTableProps) {
