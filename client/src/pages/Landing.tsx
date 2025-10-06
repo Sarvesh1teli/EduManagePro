@@ -1,10 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { GraduationCap, BarChart, Users, FileText } from "lucide-react";
 import { LoginForm } from "@/components/LoginForm";
-
-const IS_LOCAL = !import.meta.env.REPL_ID;
+import { useQuery } from "@tanstack/react-query";
 
 export default function Landing() {
+  const { data: authMode } = useQuery<{ isLocal: boolean }>({
+    queryKey: ["/api/auth/mode"],
+  });
+
+  const isLocal = authMode?.isLocal ?? false;
+
   const handleLogin = () => {
     window.location.href = "/api/login";
   };
@@ -17,7 +22,7 @@ export default function Landing() {
             <GraduationCap className="w-8 h-8 text-primary" />
             <span className="text-2xl font-semibold">School Management System</span>
           </div>
-          {!IS_LOCAL && (
+          {!isLocal && (
             <Button onClick={handleLogin} data-testid="button-login">
               Sign In
             </Button>
@@ -26,7 +31,7 @@ export default function Landing() {
       </header>
 
       <main className="flex-1 container mx-auto px-4 py-16">
-        {IS_LOCAL ? (
+        {isLocal ? (
           <div className="flex items-center justify-center min-h-[600px]">
             <LoginForm />
           </div>

@@ -10,6 +10,10 @@ const IS_LOCAL = !process.env.REPL_ID;
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
+  app.get("/api/auth/mode", (req, res) => {
+    res.json({ isLocal: IS_LOCAL });
+  });
+
   // Local authentication login route
   if (IS_LOCAL) {
     app.post("/api/login", (req, res, next) => {
