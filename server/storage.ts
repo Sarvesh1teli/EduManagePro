@@ -5,6 +5,8 @@ import {
   feeRenewals,
   notifications,
   vendors,
+  payments,
+  expenses,
   type User,
   type UpsertUser,
   type Student,
@@ -17,6 +19,10 @@ import {
   type InsertNotification,
   type Vendor,
   type InsertVendor,
+  type Payment,
+  type InsertPayment,
+  type Expense,
+  type InsertExpense,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -54,6 +60,15 @@ export interface IStorage {
   createVendor(vendor: InsertVendor): Promise<Vendor>;
   updateVendor(id: number, vendor: Partial<InsertVendor>): Promise<Vendor>;
   deleteVendor(id: number): Promise<void>;
+  
+  getPayment(id: number): Promise<Payment | undefined>;
+  getAllPayments(): Promise<Payment[]>;
+  getPaymentsByStudent(studentId: number): Promise<Payment[]>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  
+  getExpense(id: number): Promise<Expense | undefined>;
+  getAllExpenses(): Promise<Expense[]>;
+  createExpense(expense: InsertExpense): Promise<Expense>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -211,6 +226,38 @@ export class DatabaseStorage implements IStorage {
 
   async deleteVendor(id: number): Promise<void> {
     await db.delete(vendors).where(eq(vendors.id, id));
+  }
+
+  async getPayment(id: number): Promise<Payment | undefined> {
+    const [payment] = await db.select().from(payments).where(eq(payments.id, id));
+    return payment;
+  }
+
+  async getAllPayments(): Promise<Payment[]> {
+    return await db.select().from(payments);
+  }
+
+  async getPaymentsByStudent(studentId: number): Promise<Payment[]> {
+    return await db.select().from(payments).where(eq(payments.studentId, studentId));
+  }
+
+  async createPayment(paymentData: InsertPayment): Promise<Payment> {
+    const [payment] = await db.insert(payments).values(paymentData).returning();
+    return payment;
+  }
+
+  async getExpense(id: number): Promise<Expense | undefined> {
+    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
+    return expense;
+  }
+
+  async getAllExpenses(): Promise<Expense[]> {
+    return await db.select().from(expenses);
+  }
+
+  async createExpense(expenseData: InsertExpense): Promise<Expense> {
+    const [expense] = await db.insert(expenses).values(expenseData).returning();
+    return expense;
   }
 }
 

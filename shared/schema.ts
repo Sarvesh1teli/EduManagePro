@@ -172,3 +172,46 @@ export const insertVendorSchema = createInsertSchema(vendors).omit({
 
 export type InsertVendor = z.infer<typeof insertVendorSchema>;
 export type Vendor = typeof vendors.$inferSelect;
+
+// Payments table
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").notNull().references(() => students.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paymentType: varchar("payment_type").notNull(), // tuition, exam, transport, etc.
+  paymentMethod: varchar("payment_method").notNull(), // cash, card, bank transfer
+  paymentDate: timestamp("payment_date").defaultNow(),
+  status: varchar("status").notNull().default("completed"), // completed, pending, failed
+  receiptNumber: varchar("receipt_number"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;
+
+// Expenses table
+export const expenses = pgTable("expenses", {
+  id: serial("id").primaryKey(),
+  category: varchar("category").notNull(), // salaries, utilities, supplies, maintenance, etc.
+  vendorId: integer("vendor_id").references(() => vendors.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description").notNull(),
+  expenseDate: timestamp("expense_date").defaultNow(),
+  paymentMethod: varchar("payment_method").notNull(), // cash, card, bank transfer
+  status: varchar("status").notNull().default("paid"), // paid, pending
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertExpenseSchema = createInsertSchema(expenses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+export type Expense = typeof expenses.$inferSelect;
