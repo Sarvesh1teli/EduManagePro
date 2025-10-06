@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Notification } from "@shared/schema";
+import type { Notification, Student } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Notifications() {
@@ -38,16 +38,27 @@ export default function Notifications() {
   });
   const { toast } = useToast();
 
-  const { data: notifications = [], isLoading } = useQuery<Notification[]>({
+  const { data: notifications = [], isLoading, error } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
+  });
+
+  const { data: students = [], isLoading: studentsLoading, error: studentsError } = useQuery<Student[]>({
+    queryKey: ["/api/students"],
   });
 
   const createNotificationMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("/api/notifications", "POST", {
-        ...data,
-        status: "pending",
-      });
+      const payload = {
+        recipientType: data.recipientType,
+        recipientId: data.recipientId ? parseInt(data.recipientId) : 0,
+        type: data.type,
+        subject: data.subject || null,
+        message: data.message,
+        status: "pending" as const,
+        sentAt: null,
+        errorMessage: null,
+      };
+      return await apiRequest("/api/notifications", "POST", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
@@ -82,11 +93,22 @@ export default function Notifications() {
       });
       return;
     }
+
+    const requiresRecipient = !formData.recipientType.startsWith("all-");
+    if (requiresRecipient && !formData.recipientId) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a recipient",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createNotificationMutation.mutate({
       recipientType: formData.recipientType,
-      recipientId: formData.recipientId || null,
+      recipientId: formData.recipientId,
       type: formData.type,
-      subject: formData.subject || null,
+      subject: formData.subject,
       message: formData.message,
     });
   };
@@ -160,19 +182,52 @@ export default function Notifications() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="recipientType">Recipient Type</Label>
-                  <Select value={formData.recipientType} onValueChange={(value) => setFormData({ ...formData, recipientType: value })}>
+                  <Select 
+                    value={formData.recipientType} 
+                    onValueChange={(value) => setFormData({ 
+                      ...formData, 
+                      recipientType: value,
+                      recipientId: value.startsWith("all-") ? "0" : ""
+                    })}
+                  >
                     <SelectTrigger className="mt-2" id="recipientType" data-testid="select-recipient-type">
                       <SelectValue placeholder="Select recipient type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="student">Student</SelectItem>
-                      <SelectItem value="guardian">Guardian</SelectItem>
-                      <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="student">Specific Student</SelectItem>
                       <SelectItem value="all-students">All Students</SelectItem>
+                      <SelectItem value="staff">Specific Staff</SelectItem>
                       <SelectItem value="all-staff">All Staff</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {formData.recipientType === "student" && (
+                  <div>
+                    <Label htmlFor="recipient">Select Student</Label>
+                    {studentsError ? (
+                      <p className="mt-2 text-sm text-destructive">Error loading students</p>
+                    ) : studentsLoading ? (
+                      <p className="mt-2 text-sm text-muted-foreground">Loading students...</p>
+                    ) : (
+                      <Select 
+                        value={formData.recipientId} 
+                        onValueChange={(value) => setFormData({ ...formData, recipientId: value })}
+                        disabled={studentsLoading}
+                      >
+                        <SelectTrigger className="mt-2" id="recipient" data-testid="select-recipient">
+                          <SelectValue placeholder="Select student" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {students.map((student) => (
+                            <SelectItem key={student.id} value={student.id.toString()}>
+                              {student.name} ({student.rollNumber})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="notificationType">Notification Type</Label>
                   <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
@@ -249,7 +304,11 @@ export default function Notifications() {
 
         <TabsContent value="history" className="space-y-6">
           <div className="border rounded-lg">
-            {isLoading ? (
+            {error ? (
+              <div className="p-8 text-center text-destructive">
+                Error loading notifications. Please try refreshing the page.
+              </div>
+            ) : isLoading ? (
               <div className="p-8 text-center text-muted-foreground">Loading notifications...</div>
             ) : notifications.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">

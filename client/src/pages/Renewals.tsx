@@ -43,22 +43,27 @@ export default function Renewals() {
   });
   const { toast } = useToast();
 
-  const { data: renewals = [], isLoading: renewalsLoading } = useQuery<FeeRenewal[]>({
+  const { data: renewals = [], isLoading: renewalsLoading, error: renewalsError } = useQuery<FeeRenewal[]>({
     queryKey: ["/api/renewals"],
   });
 
-  const { data: students = [] } = useQuery<Student[]>({
+  const { data: students = [], isLoading: studentsLoading, error: studentsError } = useQuery<Student[]>({
     queryKey: ["/api/students"],
   });
 
   const createRenewalMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("/api/renewals", "POST", {
-        ...data,
-        feeAmount: parseFloat(data.feeAmount),
-        paidAmount: 0,
-        status: "pending",
-      });
+      const payload = {
+        studentId: data.studentId,
+        academicYear: data.academicYear,
+        term: data.term,
+        feeAmount: data.feeAmount.toString(),
+        dueDate: data.dueDate,
+        paidAmount: "0",
+        status: "pending" as const,
+        renewalDate: new Date().toISOString(),
+      };
+      return await apiRequest("/api/renewals", "POST", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/renewals"] });
@@ -93,18 +98,29 @@ export default function Renewals() {
       });
       return;
     }
+    
+    const feeAmount = parseFloat(formData.feeAmount);
+    if (isNaN(feeAmount) || feeAmount <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Fee amount must be a valid positive number",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createRenewalMutation.mutate({
       studentId: parseInt(formData.studentId),
       academicYear: formData.academicYear,
       term: formData.term,
-      feeAmount: formData.feeAmount,
+      feeAmount: feeAmount,
       dueDate: formData.dueDate,
     });
   };
 
   const filteredRenewals = renewals.filter((renewal) => {
     const student = students.find((s) => s.id === renewal.studentId);
-    const studentName = student ? `${student.firstName} ${student.lastName}` : "";
+    const studentName = student?.name || "";
     const rollNumber = student?.rollNumber || "";
     return (
       studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -179,7 +195,15 @@ export default function Renewals() {
       </div>
 
       <div className="border rounded-lg">
-        {renewalsLoading ? (
+        {renewalsError ? (
+          <div className="p-8 text-center text-destructive">
+            Error loading renewals. Please try refreshing the page.
+          </div>
+        ) : studentsError ? (
+          <div className="p-8 text-center text-destructive">
+            Error loading students. Please try refreshing the page.
+          </div>
+        ) : renewalsLoading || studentsLoading ? (
           <div className="p-8 text-center text-muted-foreground">Loading renewals...</div>
         ) : filteredRenewals.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
@@ -206,7 +230,7 @@ export default function Renewals() {
                   <TableRow key={renewal.id} data-testid={`row-renewal-${renewal.id}`}>
                     <TableCell className="font-mono text-sm">{student?.rollNumber || "-"}</TableCell>
                     <TableCell className="font-medium">
-                      {student ? `${student.firstName} ${student.lastName}` : "Unknown"}
+                      {student?.name || "Unknown"}
                     </TableCell>
                     <TableCell>{renewal.academicYear}</TableCell>
                     <TableCell>{renewal.term}</TableCell>
@@ -242,7 +266,7 @@ export default function Renewals() {
                   <SelectContent>
                     {students.map((student) => (
                       <SelectItem key={student.id} value={student.id.toString()}>
-                        {student.firstName} {student.lastName} ({student.rollNumber})
+                        {student.name} ({student.rollNumber})
                       </SelectItem>
                     ))}
                   </SelectContent>
