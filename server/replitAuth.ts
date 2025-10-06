@@ -11,7 +11,7 @@ import createMemoryStore from "memorystore";
 import { storage } from "./storage";
 import { setupLocalAuth } from "./localAuth";
 
-const DISABLE_AUTH = process.env.DISABLE_AUTH === "true";
+const DISABLE_AUTH = true;
 const IS_LOCAL = !process.env.REPL_ID;
 
 if (!DISABLE_AUTH && !IS_LOCAL && !process.env.REPLIT_DOMAINS) {
