@@ -1,11 +1,13 @@
 import * as client from "openid-client";
 import { Strategy, type VerifyFunction } from "openid-client/passport";
+import crypto from "crypto";
 
 import passport from "passport";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
+import createMemoryStore from "memorystore";
 import { storage } from "./storage";
 import { setupLocalAuth } from "./localAuth";
 
@@ -35,23 +37,14 @@ export function getSession() {
   }
   
   const sessionSecret = process.env.SESSION_SECRET || 
-    require("crypto").randomBytes(32).toString("hex");
+    crypto.randomBytes(32).toString("hex");
   
-  let sessionStore;
-  if (process.env.DATABASE_URL) {
-    const pgStore = connectPg(session);
-    sessionStore = new pgStore({
-      conString: process.env.DATABASE_URL,
-      createTableIfMissing: false,
-      ttl: sessionTtl,
-      tableName: "sessions",
-    });
-  } else {
-    const MemoryStore = require("memorystore")(session);
-    sessionStore = new MemoryStore({
-      checkPeriod: sessionTtl,
-    });
-  }
+  const MemoryStore = createMemoryStore(session);
+  const sessionStore = new MemoryStore({
+    checkPeriod: sessionTtl,
+  });
+  
+  console.log("ℹ️  Using in-memory session store (sessions won't persist across restarts)");
   
   return session({
     secret: sessionSecret,
