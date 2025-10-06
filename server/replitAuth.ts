@@ -28,21 +28,39 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000;
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+  const IS_LOCAL_ENV = !process.env.REPL_ID;
+  
+  if (!IS_LOCAL_ENV && !process.env.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET environment variable is required for production");
+  }
+  
+  const sessionSecret = process.env.SESSION_SECRET || 
+    require("crypto").randomBytes(32).toString("hex");
+  
+  let sessionStore;
+  if (process.env.DATABASE_URL) {
+    const pgStore = connectPg(session);
+    sessionStore = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: false,
+      ttl: sessionTtl,
+      tableName: "sessions",
+    });
+  } else {
+    const MemoryStore = require("memorystore")(session);
+    sessionStore = new MemoryStore({
+      checkPeriod: sessionTtl,
+    });
+  }
+  
   return session({
-    secret: process.env.SESSION_SECRET!,
+    secret: sessionSecret,
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: !IS_LOCAL_ENV,
       maxAge: sessionTtl,
     },
   });
