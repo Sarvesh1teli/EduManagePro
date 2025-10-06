@@ -29,6 +29,7 @@ export const sessions = pgTable(
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
+  password: varchar("password"), // For local auth only
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -39,6 +40,14 @@ export const users = pgTable("users", {
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
+// Login schema for local authentication
+export const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(4, "Password must be at least 4 characters"),
+});
+
+export type LoginCredentials = z.infer<typeof loginSchema>;
 
 // Students table
 export const students = pgTable("students", {
